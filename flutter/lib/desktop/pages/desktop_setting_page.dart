@@ -2429,7 +2429,10 @@ class _AboutState extends State<_About> {
       final scrollController = ScrollController();
       return SingleChildScrollView(
         controller: scrollController,
-        child: _Card(title: translate('About RustDesk'), children: [
+        child: _Card(title: translate('About RustDesk'), title_suffix: [
+          Image.asset('assets/logo.png', height: 22, errorBuilder: (_, __, ___) => Offstage())
+              .marginOnly(right: _kContentHMargin),
+        ], children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2448,7 +2451,9 @@ class _AboutState extends State<_About> {
                         .marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com/privacy.html');
+                    // Informativa Halley Sud: e la nostra assistenza a trattare
+                    // i dati, non RustDesk.
+                    launchUrlString('https://www.halleysud.it/informativa-privacy');
                   },
                   child: Text(
                     translate('Privacy Statement'),
@@ -2456,7 +2461,7 @@ class _AboutState extends State<_About> {
                   ).marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com');
+                    launchUrlString('https://www.halleysud.it');
                   },
                   child: Text(
                     translate('Website'),
@@ -2482,7 +2487,13 @@ class _AboutState extends State<_About> {
                             style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white),
-                          )
+                          ),
+                          // Il copyright di Purslane resta: l'AGPL impone di
+                          // conservare le note originali. Questa si affianca.
+                          Text(
+                            'Personalizzazione e distribuzione: Halley Sud SRL',
+                            style: const TextStyle(color: Colors.white),
+                          ).marginOnly(top: 8),
                         ],
                       ),
                     ),
