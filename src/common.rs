@@ -948,19 +948,48 @@ pub fn check_software_update() {
     }
 }
 
+// Le release del fork Halley, non `https://api.rustdesk.com/version/latest`:
+// il client deve aggiornarsi alla build con il disclaimer, e cosi facendo non
+// manda piu a terzi l'impronta del dispositivo che quel controllo includeva.
+const HALLEY_RELEASES_API: &str =
+    "https://api.github.com/repos/gabrio12/rustdesk-halleysud/releases?per_page=10";
+const HALLEY_RELEASE_TAG_URL: &str =
+    "https://github.com/gabrio12/rustdesk-halleysud/releases/tag";
+
+// GitHub restituisce le release dalla piu recente; le bozze non sono scaricabili.
+// Stringa vuota se non ce n'e nessuna utilizzabile: il chiamante la tratta come
+// "nessun aggiornamento".
+fn halley_release_url(releases: &[serde_json::Value]) -> String {
+    for release in releases {
+        if release["draft"].as_bool().unwrap_or(false) {
+            continue;
+        }
+        if let Some(tag) = release["tag_name"].as_str() {
+            if !tag.is_empty() {
+                return format!("{HALLEY_RELEASE_TAG_URL}/{tag}");
+            }
+        }
+    }
+    "".to_owned()
+}
+
 // No need to check `danger_accept_invalid_cert` for now.
-// Because the url is always `https://api.rustdesk.com/version/latest`.
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
-    let (request, url) =
-        hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
+    let url = HALLEY_RELEASES_API.to_owned();
+    let get = |tls: TlsType| {
+        create_http_client_async(tls, false)
+            .get(&url)
+            .header("Accept", "application/vnd.github+json")
+            .header("User-Agent", "RustDesk-Halley")
+            .send()
+    };
     let proxy_conf = Config::get_socks();
     let tls_url = get_url_for_tls(&url, &proxy_conf);
     let tls_type = get_cached_tls_type(tls_url);
     let is_tls_not_cached = tls_type.is_none();
     let tls_type = tls_type.unwrap_or(TlsType::Rustls);
-    let client = create_http_client_async(tls_type, false);
-    let latest_release_response = match client.post(&url).json(&request).send().await {
+    let latest_release_response = match get(tls_type).await {
         Ok(resp) => {
             upsert_tls_cache(tls_url, tls_type, false);
             resp
@@ -968,8 +997,7 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
         Err(err) => {
             if is_tls_not_cached && err.is_request() {
                 let tls_type = TlsType::NativeTls;
-                let client = create_http_client_async(tls_type, false);
-                let resp = client.post(&url).json(&request).send().await?;
+                let resp = get(tls_type).await?;
                 upsert_tls_cache(tls_url, tls_type, false);
                 resp
             } else {
@@ -978,8 +1006,8 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
         }
     };
     let bytes = latest_release_response.bytes().await?;
-    let resp: hbb_common::VersionCheckResponse = serde_json::from_slice(&bytes)?;
-    let response_url = resp.url;
+    let releases: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
+    let response_url = halley_release_url(&releases);
     let latest_release_version = response_url.rsplit('/').next().unwrap_or_default();
 
     if get_version_number(&latest_release_version) > get_version_number(crate::VERSION) {
