@@ -349,9 +349,13 @@ jobs:
         # both x64 and ARM64 platform configs; WcaUtil/DUtil ship arm64 libs. msbuild platform
         # is x64 / ARM64; the produced Package.msi is globbed since its bin/<platform>/ dir varies.
         if: env.UPLOAD_ARTIFACT == 'true'
+        # L'MSI non e nel percorso di installazione Halley (il deployer usa l'exe
+        # autoestraente), quindi un suo fallimento non deve impedire la
+        # pubblicazione della release.
+        continue-on-error: true
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          python preprocess.py --arp -d ../../rustdesk -v ${{ env.VERSION }}
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
