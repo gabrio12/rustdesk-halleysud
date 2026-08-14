@@ -1063,7 +1063,10 @@ class _CmControlPanel extends StatelessWidget {
     final disclaimer = getSessionDisclaimer();
     final accepted = disclaimerAcceptedOf(client.id);
     return Obx(() {
-      final canAccept = disclaimer.isEmpty || accepted.value;
+      // Letto sempre, non in cortocircuito: Obx richiede di osservare la
+      // variabile reattiva a ogni costruzione, anche senza disclaimer.
+      final isAccepted = accepted.value;
+      final canAccept = disclaimer.isEmpty || isAccepted;
       return Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -1149,14 +1152,14 @@ class _CmControlPanel extends StatelessWidget {
           ),
           Row(
             children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: Checkbox(
-                  value: accepted.value,
-                  onChanged: (v) => checkClickTime(
-                      client.id, () => accepted.value = v ?? false),
-                ),
+              Checkbox(
+                value: accepted.value,
+                // L'area di tocco predefinita e 48x48: troppo per una finestra
+                // larga 300px, manderebbe la riga in overflow.
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                onChanged: (v) => checkClickTime(
+                    client.id, () => accepted.value = v ?? false),
               ),
               Expanded(
                 child: Text(
