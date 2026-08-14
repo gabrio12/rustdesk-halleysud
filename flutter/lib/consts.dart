@@ -105,6 +105,9 @@ const String kOptionEnableHwcodec = "enable-hwcodec";
 const String kOptionAllowAutoRecordIncoming = "allow-auto-record-incoming";
 const String kOptionAllowAutoRecordOutgoing = "allow-auto-record-outgoing";
 const String kOptionVideoSaveDirectory = "video-save-directory";
+// Session recording disclaimer shown in the accept window, see `_CmControlPanel`.
+const String kOptionDisclaimer = "halley-disclaimer";
+const String kOptionDisclaimerText = "halley-disclaimer-text";
 const String kOptionAccessMode = "access-mode";
 const String kOptionEnableKeyboard = "enable-keyboard";
 // "Settings -> Security -> Permissions"
@@ -334,8 +337,9 @@ extension StringExtension on String {
   String get nonBreaking => replaceAll(' ', String.fromCharCode($nbsp));
 }
 
-const Size kConnectionManagerWindowSizeClosedChat = Size(300, 490);
-const Size kConnectionManagerWindowSizeOpenChat = Size(700, 490);
+// Height leaves room for the disclaimer block in the accept window.
+const Size kConnectionManagerWindowSizeClosedChat = Size(300, 580);
+const Size kConnectionManagerWindowSizeOpenChat = Size(700, 580);
 // Tabbar transition duration, now we remove the duration
 const Duration kTabTransitionDuration = Duration.zero;
 const double kEmptyMarginTop = 50;

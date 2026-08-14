@@ -1060,59 +1060,115 @@ class _CmControlPanel extends StatelessWidget {
         model.showElevation &&
         client.type_() == ClientType.remote;
     final showAccept = model.approveMode != 'password';
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Offstage(
-          offstage: !showElevation || !showAccept,
-          child: buildButton(context, color: Colors.green[700], onClick: () {
-            handleAccept(context);
-            handleElevate(context);
-            windowManager.minimize();
-          },
-              text: 'Accept and Elevate',
-              icon: Icon(
-                Icons.security_rounded,
-                color: Colors.white,
-                size: 14,
-              ),
-              textColor: Colors.white,
-              tooltip: 'accept_and_elevate_btn_tooltip'),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (showAccept)
+    final disclaimer = getSessionDisclaimer();
+    final accepted = disclaimerAcceptedOf(client.id);
+    return Obx(() {
+      final canAccept = disclaimer.isEmpty || accepted.value;
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (disclaimer.isNotEmpty)
+            buildDisclaimer(context, disclaimer, accepted),
+          Offstage(
+            offstage: !showElevation || !showAccept,
+            child: buildButton(context,
+                color: canAccept ? Colors.green[700] : Colors.grey, onClick: () {
+              if (!canAccept) return;
+              handleAccept(context);
+              handleElevate(context);
+              windowManager.minimize();
+            },
+                text: 'Accept and Elevate',
+                icon: Icon(
+                  Icons.security_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
+                textColor: Colors.white,
+                tooltip: canAccept
+                    ? 'accept_and_elevate_btn_tooltip'
+                    : 'disclaimer_required_tip'),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (showAccept)
+                Expanded(
+                  child: Column(
+                    children: [
+                      buildButton(
+                        context,
+                        color: canAccept ? MyTheme.accent : Colors.grey,
+                        onClick: () {
+                          if (!canAccept) return;
+                          handleAccept(context);
+                          windowManager.minimize();
+                        },
+                        text: 'Accept',
+                        textColor: Colors.white,
+                        tooltip: canAccept ? null : 'disclaimer_required_tip',
+                      ),
+                    ],
+                  ),
+                ),
               Expanded(
-                child: Column(
-                  children: [
-                    buildButton(
-                      context,
-                      color: MyTheme.accent,
-                      onClick: () {
-                        handleAccept(context);
-                        windowManager.minimize();
-                      },
-                      text: 'Accept',
-                      textColor: Colors.white,
-                    ),
-                  ],
+                child: buildButton(
+                  context,
+                  color: Colors.transparent,
+                  border: Border.all(color: Colors.grey),
+                  onClick: handleDisconnect,
+                  text: 'Cancel',
+                  textColor: null,
                 ),
               ),
-            Expanded(
-              child: buildButton(
-                context,
-                color: Colors.transparent,
-                border: Border.all(color: Colors.grey),
-                onClick: handleDisconnect,
-                text: 'Cancel',
-                textColor: null,
-              ),
+            ],
+          ),
+        ],
+      ).marginOnly(bottom: buttonBottomMargin);
+    });
+  }
+
+  Widget buildDisclaimer(BuildContext context, String text, RxBool accepted) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.12),
+        border: Border.all(color: Colors.orange),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: 110),
+            child: SingleChildScrollView(
+              child: Text(text, style: TextStyle(fontSize: 12)),
             ),
-          ],
-        ),
-      ],
-    ).marginOnly(bottom: buttonBottomMargin);
+          ),
+          Row(
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Checkbox(
+                  value: accepted.value,
+                  onChanged: (v) => checkClickTime(
+                      client.id, () => accepted.value = v ?? false),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  translate('disclaimer_confirm'),
+                  style: TextStyle(fontSize: 12),
+                ).marginOnly(left: 6.0),
+              ),
+            ],
+          ).marginOnly(top: 4.0),
+        ],
+      ),
+    ).marginOnly(bottom: 6.0);
   }
 
   Widget buildButton(BuildContext context,
@@ -1177,10 +1233,12 @@ class _CmControlPanel extends StatelessWidget {
   }
 
   void handleDisconnect() {
+    forgetDisclaimerAccepted(client.id);
     bind.cmCloseConnection(connId: client.id);
   }
 
   void handleAccept(BuildContext context) {
+    forgetDisclaimerAccepted(client.id);
     final model = Provider.of<ServerModel>(context, listen: false);
     model.sendLoginResponse(client, true);
   }
@@ -1227,6 +1285,21 @@ void checkClickTime(int id, Function() callback) async {
 bool allowRemoteCMModification() {
   return option2bool(kOptionAllowRemoteCmModification,
       bind.mainGetLocalOption(key: kOptionAllowRemoteCmModification));
+}
+
+// Consent is per connection, so it is never carried over to the next session.
+final _disclaimerAccepted = <int, RxBool>{};
+
+RxBool disclaimerAcceptedOf(int connId) =>
+    _disclaimerAccepted.putIfAbsent(connId, () => false.obs);
+
+void forgetDisclaimerAccepted(int connId) => _disclaimerAccepted.remove(connId);
+
+/// Empty disables the disclaimer block in the accept window.
+String getSessionDisclaimer() {
+  if (bind.mainGetOptionSync(key: kOptionDisclaimer).trim() == 'N') return '';
+  final custom = bind.mainGetOptionSync(key: kOptionDisclaimerText).trim();
+  return custom.isNotEmpty ? custom : translate('disclaimer_text');
 }
 
 class _FileTransferLogPage extends StatefulWidget {
