@@ -452,8 +452,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           onPressed,
           closeButton: true,
           help: isToUpdate ? 'Changelog' : null,
+          // Le note di rilascio stanno sul fork Halley: su rustdesk/rustdesk
+          // i nostri tag non esistono e il link darebbe pagina non trovata.
           link: isToUpdate
-              ? 'https://github.com/rustdesk/rustdesk/releases/tag/${bind.mainGetNewVersion()}'
+              ? 'https://github.com/gabrio12/rustdesk-halleysud/releases/tag/${bind.mainGetNewVersion()}'
               : null);
     }
     if (systemError.isNotEmpty) {
