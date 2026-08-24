@@ -952,25 +952,18 @@ pub fn check_software_update() {
 // il client deve aggiornarsi alla build con il disclaimer, e cosi facendo non
 // manda piu a terzi l'impronta del dispositivo che quel controllo includeva.
 const HALLEY_RELEASES_API: &str =
-    "https://api.github.com/repos/gabrio12/rustdesk-halleysud/releases?per_page=10";
+    "https://api.github.com/repos/gabrio12/rustdesk-halleysud/releases/latest";
 const HALLEY_RELEASE_TAG_URL: &str =
     "https://github.com/gabrio12/rustdesk-halleysud/releases/tag";
 
-// GitHub restituisce le release dalla piu recente; le bozze non sono scaricabili.
-// Stringa vuota se non ce n'e nessuna utilizzabile: il chiamante la tratta come
-// "nessun aggiornamento".
-fn halley_release_url(releases: &[serde_json::Value]) -> String {
-    for release in releases {
-        if release["draft"].as_bool().unwrap_or(false) {
-            continue;
-        }
-        if let Some(tag) = release["tag_name"].as_str() {
-            if !tag.is_empty() {
-                return format!("{HALLEY_RELEASE_TAG_URL}/{tag}");
-            }
-        }
+// Solo la release promossa a "latest": le build non ancora collaudate restano
+// prerelease e questo endpoint non le vede. Stringa vuota se manca o non ha un
+// tag: il chiamante la tratta come "nessun aggiornamento".
+fn halley_release_url(release: &serde_json::Value) -> String {
+    match release["tag_name"].as_str() {
+        Some(tag) if !tag.is_empty() => format!("{HALLEY_RELEASE_TAG_URL}/{tag}"),
+        _ => "".to_owned(),
     }
-    "".to_owned()
 }
 
 // No need to check `danger_accept_invalid_cert` for now.
@@ -1006,8 +999,8 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
         }
     };
     let bytes = latest_release_response.bytes().await?;
-    let releases: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
-    let response_url = halley_release_url(&releases);
+    let release: serde_json::Value = serde_json::from_slice(&bytes)?;
+    let response_url = halley_release_url(&release);
     let latest_release_version = response_url.rsplit('/').next().unwrap_or_default();
 
     if get_version_number(&latest_release_version) > get_version_number(crate::VERSION) {
