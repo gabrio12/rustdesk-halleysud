@@ -2461,7 +2461,11 @@ class _AboutState extends State<_About> {
                   ).marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://www.halleysud.it');
+                    // "Sito web programma" punta al sorgente del fork, non al
+                    // sito aziendale: e' il codice di questo binario, e l'AGPL
+                    // chiede che chi lo usa possa arrivarci. Il sito Halley Sud
+                    // resta raggiungibile dall'informativa qui sopra.
+                    launchUrlString('https://github.com/gabrio12/rustdesk-halleysud');
                   },
                   child: Text(
                     translate('Website'),
